@@ -1,0 +1,960 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Decklist Analyser</title>
+  <style>
+    :root {
+      --bg:        #0d0f18;
+      --surface:   #161927;
+      --surface2:  #1e2235;
+      --border:    #2a2f4a;
+      --text:      #dde3f5;
+      --dim:       #6b7499;
+      --accent:    #5b6ef5;
+      --accent-lt: #8b9bf8;
+      --green:     #4ade80;
+      --amber:     #fbbf24;
+      --red:       #f87171;
+      --pink:      #f472b6;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      font-size: 14px;
+    }
+
+    .container { max-width: 1280px; margin: 0 auto; padding: 32px 20px 60px; }
+
+    /* ── Header ── */
+    header { text-align: center; margin-bottom: 44px; }
+
+    header h1 {
+      font-size: 2.2rem;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      background: linear-gradient(135deg, var(--accent-lt) 0%, var(--pink) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin-bottom: 8px;
+    }
+
+    header p { color: var(--dim); font-size: 0.95rem; }
+
+    /* ── Decklists grid ── */
+    .decklists-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(270px, 1fr));
+      gap: 14px;
+      margin-bottom: 14px;
+    }
+
+    .deck-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 14px;
+      transition: border-color 0.15s;
+    }
+
+    .deck-card:focus-within { border-color: var(--accent); }
+
+    .deck-card-header {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+
+    .deck-name {
+      flex: 1;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 6px 10px;
+      color: var(--text);
+      font-size: 0.85rem;
+      outline: none;
+    }
+    .deck-name:focus { border-color: var(--accent); }
+
+    .btn-remove {
+      width: 28px; height: 28px;
+      display: flex; align-items: center; justify-content: center;
+      background: none;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--dim);
+      cursor: pointer;
+      font-size: 0.9rem;
+      transition: all 0.15s;
+      flex-shrink: 0;
+    }
+    .btn-remove:hover { border-color: var(--red); color: var(--red); }
+
+    .deck-textarea {
+      width: 100%;
+      height: 210px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px;
+      color: var(--text);
+      font-family: 'Courier New', Courier, monospace;
+      font-size: 0.78rem;
+      line-height: 1.65;
+      resize: vertical;
+      outline: none;
+    }
+    .deck-textarea:focus { border-color: var(--accent); }
+    .deck-textarea::placeholder { color: var(--dim); }
+
+    .deck-footer {
+      margin-top: 7px;
+      font-size: 0.72rem;
+      color: var(--dim);
+      min-height: 1em;
+    }
+
+    /* ── Buttons ── */
+    .btn-add {
+      width: 100%;
+      padding: 11px;
+      background: none;
+      border: 2px dashed var(--border);
+      border-radius: 12px;
+      color: var(--dim);
+      cursor: pointer;
+      font-size: 0.85rem;
+      transition: all 0.15s;
+      margin-bottom: 22px;
+    }
+    .btn-add:hover { border-color: var(--accent); color: var(--accent-lt); }
+
+    .btn-primary {
+      width: 100%;
+      padding: 14px;
+      background: var(--accent);
+      border: none;
+      border-radius: 10px;
+      color: #fff;
+      font-size: 1rem;
+      font-weight: 700;
+      cursor: pointer;
+      letter-spacing: 0.01em;
+      transition: all 0.15s;
+      margin-bottom: 40px;
+    }
+    .btn-primary:hover { background: var(--accent-lt); transform: translateY(-1px); }
+    .btn-primary:active { transform: none; }
+
+    .btn-secondary {
+      padding: 7px 14px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 7px;
+      color: var(--text);
+      font-size: 0.82rem;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .btn-secondary:hover { border-color: var(--accent); color: var(--accent-lt); }
+
+    /* ── Settings ── */
+    .settings-panel {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 20px;
+    }
+
+    .settings-label {
+      font-size: 0.72rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--dim);
+      margin-bottom: 16px;
+    }
+
+    .settings-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+      gap: 20px;
+    }
+
+    .setting-item label {
+      display: block;
+      font-size: 0.85rem;
+      font-weight: 600;
+      margin-bottom: 8px;
+    }
+
+    .setting-hint {
+      font-size: 0.72rem;
+      color: var(--dim);
+      margin-top: 5px;
+    }
+
+    .range-row { display: flex; align-items: center; gap: 10px; }
+
+    input[type="range"] {
+      flex: 1;
+      accent-color: var(--accent);
+      cursor: pointer;
+    }
+
+    .range-val {
+      min-width: 58px;
+      text-align: right;
+      font-size: 0.85rem;
+      font-weight: 700;
+      color: var(--accent-lt);
+    }
+
+    select {
+      width: 100%;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 7px;
+      padding: 8px 10px;
+      color: var(--text);
+      font-size: 0.85rem;
+      outline: none;
+      cursor: pointer;
+    }
+    select:focus { border-color: var(--accent); }
+
+    /* ── Tabs ── */
+    .tabs-row {
+      display: flex;
+      gap: 4px;
+      background: var(--surface);
+      padding: 4px;
+      border-radius: 10px;
+      width: fit-content;
+      margin-bottom: 20px;
+    }
+
+    .tab-btn {
+      padding: 8px 18px;
+      background: none;
+      border: none;
+      border-radius: 7px;
+      color: var(--dim);
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s;
+      white-space: nowrap;
+    }
+    .tab-btn.active { background: var(--surface2); color: var(--text); }
+
+    .badge {
+      display: inline-block;
+      background: var(--border);
+      border-radius: 20px;
+      padding: 1px 7px;
+      font-size: 0.68rem;
+      font-weight: 700;
+      margin-left: 5px;
+      vertical-align: middle;
+    }
+    .tab-btn.active .badge { background: var(--accent); color: #fff; }
+
+    /* ── Results header ── */
+    .results-header { margin-bottom: 22px; }
+    .results-header h2 { font-size: 1.2rem; font-weight: 700; margin-bottom: 4px; }
+    .results-header p { color: var(--dim); font-size: 0.85rem; }
+
+    /* ── Tab content ── */
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+
+    /* ── Frequency table ── */
+    .table-wrap {
+      overflow-x: auto;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+    }
+
+    table { width: 100%; border-collapse: collapse; }
+
+    th {
+      text-align: left;
+      padding: 10px 14px;
+      font-size: 0.72rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--dim);
+      border-bottom: 1px solid var(--border);
+      white-space: nowrap;
+    }
+
+    th.sortable { cursor: pointer; user-select: none; }
+    th.sortable:hover { color: var(--text); }
+    th.sort-asc::after { content: ' ↑'; color: var(--accent-lt); }
+    th.sort-desc::after { content: ' ↓'; color: var(--accent-lt); }
+
+    td {
+      padding: 8px 14px;
+      font-size: 0.85rem;
+      border-bottom: 1px solid rgba(255,255,255,0.03);
+      vertical-align: middle;
+    }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: rgba(255,255,255,0.02); }
+
+    .card-name { font-weight: 600; }
+
+    .appear-badge {
+      display: inline-block;
+      padding: 2px 9px;
+      border-radius: 20px;
+      font-size: 0.75rem;
+      font-weight: 700;
+    }
+    .appear-high { background: rgba(74,222,128,.13); color: var(--green); }
+    .appear-mid  { background: rgba(251,191,36,.13);  color: var(--amber); }
+    .appear-low  { background: rgba(248,113,113,.13); color: var(--red);  }
+
+    .bar-wrap {
+      width: 90px; height: 5px;
+      background: var(--border);
+      border-radius: 3px;
+      overflow: hidden;
+      display: inline-block;
+      vertical-align: middle;
+    }
+    .bar-fill { height: 100%; border-radius: 3px; }
+
+    .lists-cell {
+      color: var(--dim);
+      font-size: 0.75rem;
+      max-width: 220px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    /* ── Spicy grid ── */
+    .spicy-intro {
+      background: rgba(244, 114, 182, 0.07);
+      border: 1px solid rgba(244,114,182,0.2);
+      border-radius: 8px;
+      padding: 10px 14px;
+      font-size: 0.82rem;
+      color: var(--pink);
+      margin-bottom: 16px;
+    }
+
+    .spicy-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 10px;
+    }
+
+    .spicy-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 9px;
+      padding: 12px;
+      transition: border-color 0.15s;
+    }
+    .spicy-card:hover { border-color: var(--pink); }
+
+    .spicy-name { font-weight: 700; font-size: 0.87rem; margin-bottom: 5px; }
+    .spicy-detail { font-size: 0.74rem; color: var(--dim); margin-top: 2px; }
+
+    .spicy-tag {
+      display: inline-block;
+      background: rgba(244,114,182,0.12);
+      color: var(--pink);
+      border-radius: 4px;
+      padding: 1px 7px;
+      font-size: 0.68rem;
+      font-weight: 700;
+      margin-top: 7px;
+    }
+
+    /* ── Skeleton deck ── */
+    .skeleton-actions { display: flex; gap: 10px; margin-bottom: 14px; align-items: center; }
+
+    .skeleton-output {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 16px 18px;
+      font-family: 'Courier New', Courier, monospace;
+      font-size: 0.82rem;
+      line-height: 1.9;
+      white-space: pre-wrap;
+      min-height: 160px;
+    }
+
+    .skeleton-stats {
+      margin-top: 14px;
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .stat-pill {
+      padding: 5px 13px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      font-size: 0.78rem;
+    }
+    .stat-pill strong { color: var(--accent-lt); }
+
+    /* ── Empty / error states ── */
+    .empty {
+      text-align: center;
+      padding: 52px 20px;
+      color: var(--dim);
+    }
+    .empty-icon { font-size: 2.4rem; margin-bottom: 12px; }
+    .empty p { font-size: 0.9rem; }
+
+    .error-msg {
+      background: rgba(248,113,113,0.1);
+      border: 1px solid rgba(248,113,113,0.3);
+      border-radius: 8px;
+      padding: 10px 14px;
+      color: var(--red);
+      font-size: 0.85rem;
+      margin-bottom: 14px;
+    }
+  </style>
+</head>
+<body>
+<div class="container">
+
+  <header>
+    <h1>Decklist Analyser</h1>
+    <p>Compare multiple decklists &mdash; discover core cards, tech picks, and build a skeleton list</p>
+  </header>
+
+  <!-- INPUT SECTION -->
+  <section id="input-section">
+    <div class="decklists-grid" id="decklists-grid"></div>
+    <button class="btn-add" id="add-btn">+ Add Decklist</button>
+
+    <div class="settings-panel">
+      <div class="settings-label">Analysis Settings</div>
+      <div class="settings-grid">
+
+        <div class="setting-item">
+          <label>Spicy pick threshold</label>
+          <div class="range-row">
+            <input type="range" id="spicy-range" min="1" max="10" value="1">
+            <span class="range-val" id="spicy-val">1 list</span>
+          </div>
+          <p class="setting-hint">Cards appearing in this many or fewer lists are flagged as spicy tech picks</p>
+        </div>
+
+        <div class="setting-item">
+          <label>Skeleton inclusion threshold</label>
+          <div class="range-row">
+            <input type="range" id="skeleton-range" min="10" max="100" step="5" value="75">
+            <span class="range-val" id="skeleton-val">75%</span>
+          </div>
+          <p class="setting-hint">Cards appearing in at least this percentage of lists make the skeleton deck</p>
+        </div>
+
+        <div class="setting-item">
+          <label>Skeleton copy count</label>
+          <select id="copy-method">
+            <option value="min">Minimum across lists (safest)</option>
+            <option value="avg" selected>Rounded average</option>
+            <option value="mode">Most common count</option>
+            <option value="max">Maximum across lists</option>
+          </select>
+          <p class="setting-hint">How to determine the number of copies for each card in the skeleton</p>
+        </div>
+
+      </div>
+    </div>
+
+    <button class="btn-primary" id="analyse-btn">Analyse Decklists</button>
+  </section>
+
+  <!-- RESULTS SECTION -->
+  <section id="results-section" style="display:none">
+    <div class="results-header">
+      <h2>Analysis Results</h2>
+      <p id="results-summary"></p>
+    </div>
+
+    <div class="tabs-row">
+      <button class="tab-btn active" data-tab="frequency">
+        Card Frequency <span class="badge" id="badge-freq">0</span>
+      </button>
+      <button class="tab-btn" data-tab="spicy">
+        Spicy Picks <span class="badge" id="badge-spicy">0</span>
+      </button>
+      <button class="tab-btn" data-tab="skeleton">
+        Skeleton Deck <span class="badge" id="badge-skeleton">0</span>
+      </button>
+    </div>
+
+    <div id="tab-frequency" class="tab-content active"></div>
+    <div id="tab-spicy"     class="tab-content"></div>
+    <div id="tab-skeleton"  class="tab-content"></div>
+  </section>
+
+</div>
+<script>
+'use strict';
+
+// ──────────────────────────────────────────────
+// State
+// ──────────────────────────────────────────────
+let nextId = 0;
+let currentSort = { col: 'appearances', dir: 'desc' };
+
+// ──────────────────────────────────────────────
+// Boot
+// ──────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', function () {
+  addDeck('List A');
+  addDeck('List B');
+
+  document.getElementById('add-btn').addEventListener('click', function () {
+    var count = document.querySelectorAll('.deck-card').length;
+    addDeck('List ' + String.fromCharCode(65 + count));
+  });
+
+  document.getElementById('analyse-btn').addEventListener('click', runAnalysis);
+
+  // Range labels
+  var spicyRange = document.getElementById('spicy-range');
+  var skeletonRange = document.getElementById('skeleton-range');
+
+  spicyRange.addEventListener('input', function () {
+    var v = parseInt(spicyRange.value);
+    document.getElementById('spicy-val').textContent = v === 1 ? '1 list' : v + ' lists';
+  });
+
+  skeletonRange.addEventListener('input', function () {
+    document.getElementById('skeleton-val').textContent = skeletonRange.value + '%';
+  });
+
+  // Tabs
+  document.querySelectorAll('.tab-btn').forEach(function (btn) {
+    btn.addEventListener('click', function () { switchTab(btn.dataset.tab); });
+  });
+});
+
+// ──────────────────────────────────────────────
+// Deck management
+// ──────────────────────────────────────────────
+function addDeck(defaultName) {
+  var id = nextId++;
+  var grid = document.getElementById('decklists-grid');
+
+  var card = document.createElement('div');
+  card.className = 'deck-card';
+  card.dataset.id = id;
+  card.innerHTML =
+    '<div class="deck-card-header">' +
+      '<input class="deck-name" type="text" placeholder="Decklist name" value="' + esc(defaultName || ('List ' + String.fromCharCode(65 + id))) + '">' +
+      '<button class="btn-remove" title="Remove">&#x2715;</button>' +
+    '</div>' +
+    '<textarea class="deck-textarea" placeholder="Paste your decklist here...\n\n4 Card Name\n2 Another Card\n1 Third Card\n..."></textarea>' +
+    '<div class="deck-footer"></div>';
+
+  grid.appendChild(card);
+
+  var textarea = card.querySelector('.deck-textarea');
+  var footer   = card.querySelector('.deck-footer');
+  var removeBtn = card.querySelector('.btn-remove');
+
+  textarea.addEventListener('input', function () { updateFooter(textarea, footer); });
+
+  removeBtn.addEventListener('click', function () {
+    if (document.querySelectorAll('.deck-card').length <= 1) {
+      alert('You need at least one decklist.');
+      return;
+    }
+    card.remove();
+  });
+}
+
+function updateFooter(textarea, footer) {
+  var parsed = parseDecklist(textarea.value);
+  var names = Object.keys(parsed);
+  if (names.length === 0) { footer.textContent = ''; return; }
+  var total = names.reduce(function (sum, n) { return sum + parsed[n]; }, 0);
+  footer.textContent = total + ' cards (' + names.length + ' unique)';
+}
+
+// ──────────────────────────────────────────────
+// Parsing
+// ──────────────────────────────────────────────
+var SECTION_WORDS = /^(deck|sideboard|maindeck|commander|companion|about|card|qty|count)$/i;
+
+function parseDecklist(text) {
+  var cards = {};
+  var lines = text.split('\n');
+
+  for (var i = 0; i < lines.length; i++) {
+    var line = lines[i].trim();
+    if (!line || line[0] === '/' || line[0] === '#') continue;
+
+    var underscoreIdx = line.indexOf('_');
+    if (underscoreIdx !== -1) line = line.slice(0, underscoreIdx).trim();
+    if (!line) continue;
+
+    if (!/^\d/.test(line)) continue;
+
+    // "4 Card Name", "4x Card Name", or "4xCardName"
+    var m = line.match(/^(\d+)(?:x\s*|\s+)(.+)$/i);
+    if (m) {
+      var qty = parseInt(m[1], 10);
+      var name = cleanName(m[2]);
+      if (qty > 0 && name && !SECTION_WORDS.test(name)) {
+        cards[name] = (cards[name] || 0) + qty;
+      }
+      continue;
+    }
+
+    // "Card Name x4"
+    m = line.match(/^(.+?)\s+x(\d+)$/i);
+    if (m && !/^\d/.test(m[1])) {
+      var qty2 = parseInt(m[2], 10);
+      var name2 = cleanName(m[1]);
+      if (qty2 > 0 && name2 && !SECTION_WORDS.test(name2)) {
+        cards[name2] = (cards[name2] || 0) + qty2;
+      }
+      continue;
+    }
+
+    // Bare card name (assume 1)
+    if (/^[A-Za-zÀ-ɏ]/.test(line)) {
+      var name3 = cleanName(line);
+      if (name3 && !SECTION_WORDS.test(name3)) {
+        cards[name3] = (cards[name3] || 0) + 1;
+      }
+    }
+  }
+
+  return cards;
+}
+
+function cleanName(raw) {
+  // Strip MTG Arena set code + collector number: " (M11) 145" or " (M11)"
+  return raw.replace(/\s*\([A-Z0-9]+\)\s*\d*\s*$/, '').trim();
+}
+
+// ──────────────────────────────────────────────
+// Analysis
+// ──────────────────────────────────────────────
+function analyse(deckData, spicyMax, skeletonMinRate, copyMethod) {
+  var total = deckData.length;
+  var cardMap = {}; // name -> { counts: [], listNames: [] }
+
+  deckData.forEach(function (deck) {
+    var entries = Object.entries(deck.cards);
+    for (var i = 0; i < entries.length; i++) {
+      var name = entries[i][0];
+      var qty  = entries[i][1];
+      if (!cardMap[name]) cardMap[name] = { counts: [], listNames: [] };
+      cardMap[name].counts.push(qty);
+      cardMap[name].listNames.push(deck.name);
+    }
+  });
+
+  var cards = Object.entries(cardMap).map(function (entry) {
+    var name = entry[0];
+    var data = entry[1];
+    var appearances = data.counts.length;
+    var rate = appearances / total;
+    var avg = data.counts.reduce(function (a, b) { return a + b; }, 0) / appearances;
+    var min = Math.min.apply(null, data.counts);
+    var max = Math.max.apply(null, data.counts);
+    var mode = computeMode(data.counts);
+
+    var skeletonCopies;
+    if      (copyMethod === 'min')  skeletonCopies = min;
+    else if (copyMethod === 'max')  skeletonCopies = max;
+    else if (copyMethod === 'mode') skeletonCopies = mode;
+    else                            skeletonCopies = Math.max(1, Math.round(avg));
+
+    return { name: name, appearances: appearances, rate: rate, avg: avg, min: min, max: max, mode: mode, skeletonCopies: skeletonCopies, listNames: data.listNames };
+  });
+
+  var all = cards.slice().sort(function (a, b) {
+    return (b.appearances - a.appearances) || (b.avg - a.avg) || a.name.localeCompare(b.name);
+  });
+
+  var spicy = cards.filter(function (c) { return c.appearances <= spicyMax; })
+    .sort(function (a, b) { return a.appearances - b.appearances || a.name.localeCompare(b.name); });
+
+  var skeleton = cards.filter(function (c) { return c.rate >= skeletonMinRate; })
+    .sort(function (a, b) { return (b.skeletonCopies - a.skeletonCopies) || a.name.localeCompare(b.name); });
+
+  return { all: all, spicy: spicy, skeleton: skeleton, total: total };
+}
+
+function computeMode(arr) {
+  var freq = {};
+  arr.forEach(function (v) { freq[v] = (freq[v] || 0) + 1; });
+  var best = arr[0], bestCount = 0;
+  Object.entries(freq).forEach(function (kv) {
+    if (kv[1] > bestCount) { bestCount = kv[1]; best = parseInt(kv[0], 10); }
+  });
+  return best;
+}
+
+// ──────────────────────────────────────────────
+// Run analysis
+// ──────────────────────────────────────────────
+function runAnalysis() {
+  var cards = document.querySelectorAll('.deck-card');
+  var deckData = [];
+  var errors = [];
+
+  cards.forEach(function (card) {
+    var name    = card.querySelector('.deck-name').value.trim() || 'Unnamed';
+    var text    = card.querySelector('.deck-textarea').value;
+    var parsed  = parseDecklist(text);
+    if (Object.keys(parsed).length === 0) {
+      errors.push(name + ' has no parseable cards');
+      return;
+    }
+    deckData.push({ name: name, cards: parsed });
+  });
+
+  if (deckData.length === 0) {
+    showError('No decklists with parseable content found. Check your format: "4 Card Name".');
+    return;
+  }
+  clearError();
+
+  var spicyMax      = parseInt(document.getElementById('spicy-range').value, 10);
+  var skeletonMinPct = parseInt(document.getElementById('skeleton-range').value, 10);
+  var copyMethod    = document.getElementById('copy-method').value;
+
+  var results = analyse(deckData, spicyMax, skeletonMinPct / 100, copyMethod);
+  renderResults(results, deckData);
+}
+
+function showError(msg) {
+  clearError();
+  var el = document.createElement('div');
+  el.className = 'error-msg';
+  el.id = 'error-msg';
+  el.textContent = msg;
+  document.getElementById('input-section').prepend(el);
+}
+
+function clearError() {
+  var el = document.getElementById('error-msg');
+  if (el) el.remove();
+}
+
+// ──────────────────────────────────────────────
+// Rendering
+// ──────────────────────────────────────────────
+function renderResults(results, deckData) {
+  var section = document.getElementById('results-section');
+  section.style.display = '';
+
+  var summary = 'Analysed ' + results.total + ' decklist' + (results.total === 1 ? '' : 's') +
+    ' · ' + results.all.length + ' unique card' + (results.all.length === 1 ? '' : 's') + ' found';
+  document.getElementById('results-summary').textContent = summary;
+
+  document.getElementById('badge-freq').textContent     = results.all.length;
+  document.getElementById('badge-spicy').textContent    = results.spicy.length;
+  document.getElementById('badge-skeleton').textContent = results.skeleton.length;
+
+  currentSort = { col: 'appearances', dir: 'desc' };
+  renderFrequency(results.all, results.total);
+  renderSpicy(results.spicy, results.total, parseInt(document.getElementById('spicy-range').value, 10));
+  renderSkeleton(results.skeleton);
+
+  switchTab('frequency');
+  section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+// ── Frequency tab ──
+function renderFrequency(cards, total) {
+  var container = document.getElementById('tab-frequency');
+  if (cards.length === 0) {
+    container.innerHTML = emptyState('No cards found.'); return;
+  }
+
+  var rows = cards.map(function (card) {
+    var pct   = Math.round(card.rate * 100);
+    var cls   = pct >= 75 ? 'appear-high' : pct >= 40 ? 'appear-mid' : 'appear-low';
+    var color = pct >= 75 ? 'var(--green)'  : pct >= 40 ? 'var(--amber)' : 'var(--red)';
+    var range = card.min === card.max ? card.min : card.min + '–' + card.max;
+    return '<tr>' +
+      '<td class="card-name">' + esc(card.name) + '</td>' +
+      '<td><span class="appear-badge ' + cls + '">' + card.appearances + '/' + total + '</span></td>' +
+      '<td><span class="bar-wrap"><span class="bar-fill" style="width:' + pct + '%;background:' + color + '"></span></span>' +
+        '<span style="color:var(--dim);font-size:0.72rem;margin-left:6px">' + pct + '%</span></td>' +
+      '<td>' + card.avg.toFixed(1) + '</td>' +
+      '<td style="color:var(--dim)">' + range + '</td>' +
+      '<td class="lists-cell" title="' + esc(card.listNames.join(', ')) + '">' + esc(card.listNames.join(', ')) + '</td>' +
+    '</tr>';
+  }).join('');
+
+  container.innerHTML =
+    '<div class="table-wrap"><table>' +
+    '<thead><tr>' +
+      '<th class="sortable" data-col="name">Card Name</th>' +
+      '<th class="sortable sort-desc" data-col="appearances">Appearances</th>' +
+      '<th>Frequency</th>' +
+      '<th class="sortable" data-col="avg">Avg Copies</th>' +
+      '<th>Range</th>' +
+      '<th>Lists</th>' +
+    '</tr></thead>' +
+    '<tbody>' + rows + '</tbody>' +
+    '</table></div>';
+
+  container.querySelectorAll('th.sortable').forEach(function (th) {
+    th.addEventListener('click', function () {
+      var col = th.dataset.col;
+      if (currentSort.col === col) {
+        currentSort.dir = currentSort.dir === 'asc' ? 'desc' : 'asc';
+      } else {
+        currentSort.col = col;
+        currentSort.dir = col === 'name' ? 'asc' : 'desc';
+      }
+      var sorted = cards.slice().sort(function (a, b) {
+        var cmp;
+        if      (col === 'name')        cmp = a.name.localeCompare(b.name);
+        else if (col === 'appearances') cmp = a.appearances - b.appearances;
+        else                            cmp = a.avg - b.avg;
+        return currentSort.dir === 'asc' ? cmp : -cmp;
+      });
+      renderFrequency(sorted, total);
+    });
+  });
+
+  // Re-apply sort indicator after re-render
+  var th = container.querySelector('[data-col="' + currentSort.col + '"]');
+  if (th) {
+    th.classList.add(currentSort.dir === 'asc' ? 'sort-asc' : 'sort-desc');
+    th.classList.remove(currentSort.dir === 'asc' ? 'sort-desc' : 'sort-asc');
+  }
+}
+
+// ── Spicy tab ──
+function renderSpicy(cards, total, threshold) {
+  var container = document.getElementById('tab-spicy');
+  if (cards.length === 0) {
+    container.innerHTML =
+      '<div class="spicy-intro">No spicy picks found — try lowering the threshold, or add more decklists.</div>' +
+      emptyState('No cards match the current spicy threshold.');
+    return;
+  }
+
+  var label = threshold === 1 ? 'Cards unique to a single list' : 'Cards appearing in ' + threshold + ' or fewer lists';
+  var html = '<div class="spicy-intro">✨ ' + label + ' — these are the tech choices that set lists apart</div>';
+  html += '<div class="spicy-grid">';
+
+  cards.forEach(function (card) {
+    var pct = Math.round(card.rate * 100);
+    var countLabel = card.appearances === 1 ? '1 list only' : card.appearances + ' lists';
+    html +=
+      '<div class="spicy-card">' +
+        '<div class="spicy-name">' + esc(card.name) + '</div>' +
+        '<div class="spicy-detail">Found in: ' + esc(card.listNames.join(', ')) + '</div>' +
+        '<div class="spicy-detail">' + card.avg.toFixed(1) + ' copies avg &middot; ' + pct + '% of lists</div>' +
+        '<div class="spicy-tag">' + countLabel + '</div>' +
+      '</div>';
+  });
+
+  html += '</div>';
+  container.innerHTML = html;
+}
+
+// ── Skeleton tab ──
+function renderSkeleton(cards) {
+  var container = document.getElementById('tab-skeleton');
+  if (cards.length === 0) {
+    container.innerHTML =
+      '<p style="color:var(--dim);font-size:0.85rem;margin-bottom:12px">No cards meet the skeleton threshold &mdash; try lowering the percentage.</p>' +
+      emptyState('Increase the number of decklists or lower the skeleton threshold.');
+    return;
+  }
+
+  var lines = cards.map(function (c) { return c.skeletonCopies + ' ' + c.name; });
+  var totalCopies = cards.reduce(function (s, c) { return s + c.skeletonCopies; }, 0);
+  var decklistText = lines.join('\n');
+
+  container.innerHTML =
+    '<div class="skeleton-actions">' +
+      '<button class="btn-secondary" id="copy-btn">Copy Decklist</button>' +
+    '</div>' +
+    '<div class="skeleton-output" id="skeleton-output">' + lines.map(esc).join('\n') + '</div>' +
+    '<div class="skeleton-stats">' +
+      '<div class="stat-pill"><strong>' + cards.length + '</strong> unique cards</div>' +
+      '<div class="stat-pill"><strong>' + totalCopies + '</strong> total copies</div>' +
+    '</div>';
+
+  document.getElementById('copy-btn').addEventListener('click', function () {
+    var btn = document.getElementById('copy-btn');
+    copyToClipboard(decklistText, function () {
+      btn.textContent = 'Copied!';
+      setTimeout(function () { btn.textContent = 'Copy Decklist'; }, 2000);
+    });
+  });
+}
+
+function copyToClipboard(text, onSuccess) {
+  if (navigator.clipboard && window.isSecureContext) {
+    navigator.clipboard.writeText(text).then(onSuccess).catch(fallback);
+  } else {
+    fallback();
+  }
+  function fallback() {
+    var el = document.createElement('textarea');
+    el.value = text;
+    el.style.position = 'fixed';
+    el.style.opacity = '0';
+    document.body.appendChild(el);
+    el.select();
+    try { document.execCommand('copy'); onSuccess(); } catch (e) {}
+    document.body.removeChild(el);
+  }
+}
+
+// ── Tabs ──
+function switchTab(name) {
+  document.querySelectorAll('.tab-btn').forEach(function (btn) {
+    btn.classList.toggle('active', btn.dataset.tab === name);
+  });
+  document.querySelectorAll('.tab-content').forEach(function (el) {
+    el.classList.toggle('active', el.id === 'tab-' + name);
+  });
+}
+
+// ── Utilities ──
+function emptyState(msg) {
+  return '<div class="empty"><div class="empty-icon">&#128337;</div><p>' + esc(msg) + '</p></div>';
+}
+
+function esc(s) {
+  return String(s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+</script>
+</body>
+</html>

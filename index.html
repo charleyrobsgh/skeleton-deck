@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Decklist Analyser</title>
+  <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-3105748619761835" crossorigin="anonymous"></script>
   <style>
     :root {
       --bg:        #0d0f18;
@@ -435,6 +436,52 @@
       font-size: 0.85rem;
       margin-bottom: 14px;
     }
+
+    /* ── Ads & footer ── */
+    .ad-slot {
+      margin: 0 0 28px;
+      min-height: 90px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+    }
+
+    footer {
+      margin-top: 60px;
+      padding-top: 20px;
+      border-top: 1px solid var(--border);
+      display: flex;
+      justify-content: center;
+      gap: 18px;
+      font-size: 0.78rem;
+      color: var(--dim);
+    }
+    footer a { color: var(--dim); text-decoration: underline; cursor: pointer; background: none; border: none; font: inherit; }
+    footer a:hover { color: var(--accent-lt); }
+
+    .modal-overlay {
+      display: none;
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,0.6);
+      z-index: 100;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    .modal-overlay.active { display: flex; }
+    .modal-box {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 28px;
+      max-width: 560px;
+      max-height: 80vh;
+      overflow-y: auto;
+    }
+    .modal-box h2 { font-size: 1.1rem; margin-bottom: 14px; }
+    .modal-box p { font-size: 0.85rem; color: var(--dim); line-height: 1.6; margin-bottom: 12px; }
+    .modal-close { margin-top: 10px; }
   </style>
 </head>
 <body>
@@ -444,6 +491,17 @@
     <h1>Decklist Analyser</h1>
     <p>Compare multiple decklists &mdash; discover core cards, tech picks, and build a skeleton list</p>
   </header>
+
+  <!-- AD SLOT: top banner -->
+  <div class="ad-slot">
+    <ins class="adsbygoogle"
+         style="display:block; width:100%"
+         data-ad-client="ca-pub-3105748619761835"
+         data-ad-slot="0000000000"
+         data-ad-format="auto"
+         data-full-width-responsive="true"></ins>
+    <script>(adsbygoogle = window.adsbygoogle || []).push({});</script>
+  </div>
 
   <!-- INPUT SECTION -->
   <section id="input-section">
@@ -513,7 +571,47 @@
     <div id="tab-skeleton"  class="tab-content"></div>
   </section>
 
+  <!-- AD SLOT: below results -->
+  <div class="ad-slot">
+    <ins class="adsbygoogle"
+         style="display:block; width:100%"
+         data-ad-client="ca-pub-3105748619761835"
+         data-ad-slot="0000000000"
+         data-ad-format="auto"
+         data-full-width-responsive="true"></ins>
+    <script>(adsbygoogle = window.adsbygoogle || []).push({});</script>
+  </div>
+
+  <footer>
+    <a id="privacy-link">Privacy Policy</a>
+    <a href="mailto:skeletondeck@gmail.com">Contact</a>
+  </footer>
+
 </div>
+
+<!-- Privacy Policy Modal -->
+<div class="modal-overlay" id="privacy-modal">
+  <div class="modal-box">
+    <h2>Privacy Policy</h2>
+    <p>Decklist Analyser runs entirely in your browser. Decklists you paste in are processed locally on your device and are not sent to, or stored on, any server.</p>
+    <p>This site uses Google AdSense to display ads. Google and its partners may use cookies and similar technologies to serve ads based on your visits to this and other websites. You can learn more, and adjust your ad preferences, at <a href="https://adssettings.google.com" target="_blank" rel="noopener">adssettings.google.com</a>.</p>
+    <p>This site does not knowingly collect personal information beyond what your browser and ad partners handle automatically (e.g. cookies, general usage data). If you have questions, contact us using the link in the footer.</p>
+    <button class="btn-secondary modal-close" id="privacy-close">Close</button>
+  </div>
+</div>
+
+<script>
+document.getElementById('privacy-link').addEventListener('click', function () {
+  document.getElementById('privacy-modal').classList.add('active');
+});
+document.getElementById('privacy-close').addEventListener('click', function () {
+  document.getElementById('privacy-modal').classList.remove('active');
+});
+document.getElementById('privacy-modal').addEventListener('click', function (e) {
+  if (e.target === this) this.classList.remove('active');
+});
+</script>
+
 <script>
 'use strict';
 

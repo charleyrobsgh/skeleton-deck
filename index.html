@@ -482,6 +482,56 @@
     .modal-box h2 { font-size: 1.1rem; margin-bottom: 14px; }
     .modal-box p { font-size: 0.85rem; color: var(--dim); line-height: 1.6; margin-bottom: 12px; }
     .modal-close { margin-top: 10px; }
+
+    /* ── Bug report ── */
+    .bug-report-btn {
+      position: fixed;
+      bottom: 22px;
+      right: 22px;
+      z-index: 90;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 12px 18px;
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      border-radius: 30px;
+      font-size: 0.85rem;
+      font-weight: 700;
+      cursor: pointer;
+      box-shadow: 0 4px 18px rgba(0,0,0,0.4);
+      transition: all 0.15s;
+    }
+    .bug-report-btn:hover { background: var(--accent-lt); transform: translateY(-2px); }
+    .bug-report-btn .icon { font-size: 1rem; line-height: 1; }
+
+    .form-group { margin-bottom: 16px; }
+    .form-group label {
+      display: block;
+      font-size: 0.85rem;
+      font-weight: 600;
+      margin-bottom: 6px;
+    }
+    .form-input, .form-textarea {
+      width: 100%;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 7px;
+      padding: 8px 10px;
+      color: var(--text);
+      font-size: 0.85rem;
+      font-family: inherit;
+      outline: none;
+    }
+    .form-input:focus, .form-textarea:focus { border-color: var(--accent); }
+    .form-textarea { min-height: 110px; resize: vertical; }
+    .form-hint { font-size: 0.72rem; color: var(--dim); margin-top: 4px; }
+    .form-status { font-size: 0.82rem; margin-top: 12px; display: none; }
+    .form-status.success { display: block; color: var(--green); }
+    .form-status.error { display: block; color: var(--red); }
+    #bug-submit-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+    .modal-box form .btn-primary { margin-bottom: 0; }
   </style>
 </head>
 <body>
@@ -584,7 +634,7 @@
 
   <footer>
     <a id="privacy-link">Privacy Policy</a>
-    <a href="mailto:skeletondeck@gmail.com">Contact</a>
+    <a href="mailto:skeletondeckbugs@outlook.com">Contact</a>
   </footer>
 
 </div>
@@ -600,6 +650,37 @@
   </div>
 </div>
 
+<!-- Bug report button -->
+<button class="bug-report-btn" id="bug-report-btn">
+  <span class="icon">&#128027;</span> Report Bug
+</button>
+
+<!-- Bug report modal -->
+<div class="modal-overlay" id="bug-modal">
+  <div class="modal-box">
+    <h2>Report a Bug</h2>
+    <p>Found something broken? Let us know and we'll take a look.</p>
+    <form id="bug-form">
+      <div class="form-group">
+        <label for="bug-subject">Subject</label>
+        <input class="form-input" type="text" id="bug-subject" name="subject" placeholder="Short summary of the issue" required maxlength="150">
+      </div>
+      <div class="form-group">
+        <label for="bug-email">Email <span style="color:var(--dim);font-weight:400">(optional)</span></label>
+        <input class="form-input" type="email" id="bug-email" name="email" placeholder="you@example.com (if you'd like a reply)">
+        <p class="form-hint">Leave blank to report anonymously.</p>
+      </div>
+      <div class="form-group">
+        <label for="bug-issue">Issue</label>
+        <textarea class="form-textarea" id="bug-issue" name="issue" placeholder="What happened? What did you expect instead? Steps to reproduce help a lot." required maxlength="4000"></textarea>
+      </div>
+      <input type="text" name="_honey" style="display:none" tabindex="-1" autocomplete="off">
+      <button type="submit" class="btn-primary" id="bug-submit-btn">Submit Report</button>
+      <div class="form-status" id="bug-status"></div>
+    </form>
+  </div>
+</div>
+
 <script>
 document.getElementById('privacy-link').addEventListener('click', function () {
   document.getElementById('privacy-modal').classList.add('active');
@@ -610,6 +691,68 @@ document.getElementById('privacy-close').addEventListener('click', function () {
 document.getElementById('privacy-modal').addEventListener('click', function (e) {
   if (e.target === this) this.classList.remove('active');
 });
+</script>
+
+<script>
+(function () {
+  var BUG_REPORT_EMAIL = 'skeletondeckbugs@outlook.com';
+
+  var modal    = document.getElementById('bug-modal');
+  var openBtn  = document.getElementById('bug-report-btn');
+  var form     = document.getElementById('bug-form');
+  var submit   = document.getElementById('bug-submit-btn');
+  var status   = document.getElementById('bug-status');
+
+  function openModal() {
+    modal.classList.add('active');
+    status.className = 'form-status';
+    status.textContent = '';
+  }
+  function closeModal() { modal.classList.remove('active'); }
+
+  openBtn.addEventListener('click', openModal);
+  modal.addEventListener('click', function (e) { if (e.target === modal) closeModal(); });
+
+  form.addEventListener('submit', function (e) {
+    e.preventDefault();
+
+    var subject = document.getElementById('bug-subject').value.trim();
+    var email   = document.getElementById('bug-email').value.trim();
+    var issue   = document.getElementById('bug-issue').value.trim();
+    if (form.querySelector('[name="_honey"]').value) return; // spam bot caught
+
+    submit.disabled = true;
+    submit.textContent = 'Sending...';
+    status.className = 'form-status';
+    status.textContent = '';
+
+    fetch('https://formsubmit.co/ajax/' + BUG_REPORT_EMAIL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+      body: JSON.stringify({
+        _subject: 'Bug Report: ' + subject,
+        subject: subject,
+        email: email || '(not provided)',
+        issue: issue
+      })
+    })
+      .then(function (res) { if (!res.ok) throw new Error('Request failed'); return res.json(); })
+      .then(function () {
+        status.className = 'form-status success';
+        status.textContent = "Thanks! Your report has been sent.";
+        form.reset();
+        setTimeout(closeModal, 1800);
+      })
+      .catch(function () {
+        status.className = 'form-status error';
+        status.textContent = 'Something went wrong sending your report. Please try again or email us directly.';
+      })
+      .finally(function () {
+        submit.disabled = false;
+        submit.textContent = 'Submit Report';
+      });
+  });
+})();
 </script>
 
 <script>

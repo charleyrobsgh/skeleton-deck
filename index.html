@@ -49,6 +49,28 @@
 
     header p { color: var(--dim); font-size: 0.95rem; }
 
+    /* ── Game tabs ── */
+    .game-tabs {
+      display: flex;
+      justify-content: center;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 32px;
+    }
+    .game-tab {
+      padding: 8px 16px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      color: var(--dim);
+      font-size: 0.82rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .game-tab:hover { border-color: var(--accent); color: var(--accent-lt); }
+    .game-tab.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+
     /* ── Decklists grid ── */
     .decklists-grid {
       display: grid;
@@ -64,6 +86,8 @@
       padding: 14px;
       transition: border-color 0.15s;
     }
+
+    .deck-card.wide { grid-column: span 2; }
 
     .deck-card:focus-within { border-color: var(--accent); }
 
@@ -103,6 +127,7 @@
     .deck-textarea {
       width: 100%;
       height: 210px;
+      min-height: 210px;
       background: var(--surface2);
       border: 1px solid var(--border);
       border-radius: 8px;
@@ -111,7 +136,7 @@
       font-family: 'Courier New', Courier, monospace;
       font-size: 0.78rem;
       line-height: 1.65;
-      resize: vertical;
+      resize: both;
       outline: none;
     }
     .deck-textarea:focus { border-color: var(--accent); }
@@ -532,6 +557,18 @@
     .form-status.error { display: block; color: var(--red); }
     #bug-submit-btn:disabled { opacity: 0.6; cursor: not-allowed; }
     .modal-box form .btn-primary { margin-bottom: 0; }
+
+    /* ── Card image preview ── */
+    #card-preview {
+      display: none;
+      position: fixed;
+      z-index: 200;
+      width: 244px;
+      border-radius: 12px;
+      box-shadow: 0 10px 34px rgba(0,0,0,0.6);
+      pointer-events: none;
+    }
+    [data-card-name] { cursor: default; }
   </style>
 </head>
 <body>
@@ -541,6 +578,15 @@
     <h1>Decklist Analyser</h1>
     <p>Compare multiple decklists &mdash; discover core cards, tech picks, and build a skeleton list</p>
   </header>
+
+  <!-- GAME SELECTOR -->
+  <div class="game-tabs" id="game-tabs">
+    <button class="game-tab" data-game="lorcana">Lorcana</button>
+    <button class="game-tab" data-game="onepiece">One Piece</button>
+    <button class="game-tab" data-game="mtg">Magic: The Gathering</button>
+    <button class="game-tab" data-game="pokemon">Pok&eacute;mon</button>
+    <button class="game-tab" data-game="other">Other</button>
+  </div>
 
   <!-- AD SLOT: top banner -->
   <div class="ad-slot">
@@ -763,17 +809,21 @@ document.getElementById('privacy-modal').addEventListener('click', function (e) 
 // ──────────────────────────────────────────────
 let nextId = 0;
 let currentSort = { col: 'appearances', dir: 'desc' };
+let selectedGame = null;
+let lastAnalysedNames = [];
+let scryfallCache = {}; // lowercased card name -> image URL, or null if not found
+let lorcanaCache = {};  // lowercased "Name - Version" (or "Name") -> image URL, or null if not found
 
 // ──────────────────────────────────────────────
 // Boot
 // ──────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', function () {
-  addDeck('List A');
-  addDeck('List B');
+  addDeck('Decklist A');
+  addDeck('Decklist B');
 
   document.getElementById('add-btn').addEventListener('click', function () {
     var count = document.querySelectorAll('.deck-card').length;
-    addDeck('List ' + String.fromCharCode(65 + count));
+    addDeck('Decklist ' + String.fromCharCode(65 + count));
   });
 
   document.getElementById('analyse-btn').addEventListener('click', runAnalysis);
@@ -795,7 +845,163 @@ document.addEventListener('DOMContentLoaded', function () {
   document.querySelectorAll('.tab-btn').forEach(function (btn) {
     btn.addEventListener('click', function () { switchTab(btn.dataset.tab); });
   });
+
+  // Game selector
+  document.querySelectorAll('.game-tab').forEach(function (btn) {
+    btn.addEventListener('click', function () { selectGame(btn.dataset.game); });
+  });
+
+  initCardPreview();
 });
+
+function selectGame(game) {
+  selectedGame = game;
+  document.querySelectorAll('.game-tab').forEach(function (btn) {
+    btn.classList.toggle('active', btn.dataset.game === game);
+  });
+  maybeFetchCardImages();
+}
+
+// ──────────────────────────────────────────────
+// Card images (Scryfall for MTG, Lorcast for Lorcana)
+// ──────────────────────────────────────────────
+function maybeFetchCardImages() {
+  if (lastAnalysedNames.length === 0) return;
+  if (selectedGame === 'mtg') fetchScryfallImages(lastAnalysedNames);
+  else if (selectedGame === 'lorcana') fetchLorcanaImages(lastAnalysedNames);
+}
+
+function fetchScryfallImages(names) {
+  var toFetch = [];
+  var seen = {};
+  names.forEach(function (n) {
+    var key = n.toLowerCase();
+    if (seen[key] || key in scryfallCache) return;
+    seen[key] = true;
+    toFetch.push(n);
+  });
+  if (toFetch.length === 0) return;
+
+  var chunks = [];
+  for (var i = 0; i < toFetch.length; i += 75) chunks.push(toFetch.slice(i, i + 75));
+
+  chunks.forEach(function (chunk) {
+    fetch('https://api.scryfall.com/cards/collection', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ identifiers: chunk.map(function (n) { return { name: n }; }) })
+    })
+      .then(function (res) { return res.json(); })
+      .then(function (json) {
+        (json.data || []).forEach(function (card) {
+          var img = card.image_uris ? card.image_uris.normal :
+            (card.card_faces && card.card_faces[0] && card.card_faces[0].image_uris ? card.card_faces[0].image_uris.normal : null);
+          scryfallCache[card.name.toLowerCase()] = img || null;
+        });
+        (json.not_found || []).forEach(function (identifier) {
+          if (identifier.name) scryfallCache[identifier.name.toLowerCase()] = null;
+        });
+      })
+      .catch(function () { /* images just won't show for this batch */ });
+  });
+}
+
+// Lorcast has no bulk/collection endpoint, so we search once per unique base
+// name (before " - Version") and resolve every version that appears in the
+// decklist from that one response, run with a small concurrency cap.
+function fetchLorcanaImages(names) {
+  var toFetch = [];
+  var seen = {};
+  names.forEach(function (n) {
+    var key = n.toLowerCase();
+    if (seen[key] || key in lorcanaCache) return;
+    seen[key] = true;
+    toFetch.push(n);
+  });
+  if (toFetch.length === 0) return;
+
+  var groups = {}; // base name -> [full names sharing that base]
+  toFetch.forEach(function (n) {
+    var dashIdx = n.indexOf(' - ');
+    var base = dashIdx !== -1 ? n.slice(0, dashIdx) : n;
+    if (!groups[base]) groups[base] = [];
+    groups[base].push(n);
+  });
+
+  var baseNames = Object.keys(groups);
+  var next = 0;
+  var CONCURRENCY = 5;
+
+  function runNext() {
+    if (next >= baseNames.length) return;
+    var base = baseNames[next++];
+    fetch('https://api.lorcast.com/v0/cards/search?q=' + encodeURIComponent(base))
+      .then(function (res) { return res.ok ? res.json() : { results: [] }; })
+      .then(function (json) {
+        var results = json.results || [];
+        groups[base].forEach(function (fullName) {
+          var key = fullName.toLowerCase();
+          var match = results.find(function (c) {
+            var candidate = c.version ? (c.name + ' - ' + c.version) : c.name;
+            return candidate.toLowerCase() === key;
+          });
+          var img = match && match.image_uris && match.image_uris.digital ? match.image_uris.digital.normal : null;
+          lorcanaCache[key] = img || null;
+        });
+      })
+      .catch(function () { /* images just won't show for this base name */ })
+      .then(runNext);
+  }
+
+  for (var i = 0; i < CONCURRENCY && i < baseNames.length; i++) runNext();
+}
+
+// ──────────────────────────────────────────────
+// Card hover preview
+// ──────────────────────────────────────────────
+var cardPreviewEl = null;
+
+function initCardPreview() {
+  cardPreviewEl = document.createElement('img');
+  cardPreviewEl.id = 'card-preview';
+  document.body.appendChild(cardPreviewEl);
+
+  document.body.addEventListener('mouseover', function (e) {
+    var el = e.target.closest('[data-card-name]');
+    if (!el) return;
+    var cache = selectedGame === 'mtg' ? scryfallCache : selectedGame === 'lorcana' ? lorcanaCache : null;
+    if (!cache) return;
+    var url = cache[el.dataset.cardName.toLowerCase()];
+    if (!url) return;
+    cardPreviewEl.src = url;
+    cardPreviewEl.style.display = 'block';
+    positionCardPreview(e.clientX, e.clientY);
+  });
+
+  document.body.addEventListener('mousemove', function (e) {
+    if (cardPreviewEl.style.display === 'block') positionCardPreview(e.clientX, e.clientY);
+  });
+
+  document.body.addEventListener('mouseout', function (e) {
+    var el = e.target.closest('[data-card-name]');
+    if (el && !el.contains(e.relatedTarget)) {
+      cardPreviewEl.style.display = 'none';
+    }
+  });
+}
+
+function positionCardPreview(x, y) {
+  var margin = 18;
+  var width = cardPreviewEl.offsetWidth || 244;
+  var height = cardPreviewEl.offsetHeight || 340;
+  var left = x + margin;
+  var top = y + margin;
+  if (left + width > window.innerWidth) left = x - margin - width;
+  if (top + height > window.innerHeight) top = window.innerHeight - height - margin;
+  if (top < margin) top = margin;
+  cardPreviewEl.style.left = left + 'px';
+  cardPreviewEl.style.top = top + 'px';
+}
 
 // ──────────────────────────────────────────────
 // Deck management
@@ -809,7 +1015,7 @@ function addDeck(defaultName) {
   card.dataset.id = id;
   card.innerHTML =
     '<div class="deck-card-header">' +
-      '<input class="deck-name" type="text" placeholder="Decklist name" value="' + esc(defaultName || ('List ' + String.fromCharCode(65 + id))) + '">' +
+      '<input class="deck-name" type="text" placeholder="Decklist name" value="' + esc(defaultName || ('Decklist ' + String.fromCharCode(65 + id))) + '">' +
       '<button class="btn-remove" title="Remove">&#x2715;</button>' +
     '</div>' +
     '<textarea class="deck-textarea" placeholder="Paste your decklist here...\n\n4 Card Name\n2 Another Card\n1 Third Card\n..."></textarea>' +
@@ -824,12 +1030,69 @@ function addDeck(defaultName) {
   textarea.addEventListener('input', function () { updateFooter(textarea, footer); });
 
   removeBtn.addEventListener('click', function () {
-    if (document.querySelectorAll('.deck-card').length <= 1) {
-      alert('You need at least one decklist.');
-      return;
-    }
+    var isLast = document.querySelectorAll('.deck-card').length <= 1;
     card.remove();
+    if (isLast) addDeck('Decklist A');
   });
+
+  attachWidthResize(card);
+}
+
+// Dragging the textarea's own resize handle (now both axes) widens it past
+// its grid column; once it crosses ~1.4x a normal column's width, snap the
+// parent card to span 2 grid columns so the grid reflows the other cards
+// around it instead of overlapping them.
+//
+// The 2x cap has to be a real pixel `max-width` set *before* the drag starts:
+// the browser's native resize continuously re-applies the dragged size every
+// frame while the mouse is down, so correcting the width afterwards (e.g. in
+// the ResizeObserver callback) just gets overwritten on the next frame. Only
+// a genuine CSS max-width is honoured by the browser's own resize clamping.
+function attachWidthResize(card) {
+  var textarea = card.querySelector('.deck-textarea');
+
+  requestAnimationFrame(function () {
+    var natural = textarea.getBoundingClientRect().width;
+    textarea.dataset.naturalWidth = natural;
+    textarea.style.minWidth = natural + 'px';
+    updateMaxWidth(textarea);
+  });
+
+  textarea.addEventListener('mousedown', function (e) {
+    var rect = textarea.getBoundingClientRect();
+    var nearResizeCorner = e.clientX > rect.right - 20 && e.clientY > rect.bottom - 20;
+    if (nearResizeCorner) updateMaxWidth(textarea);
+  });
+
+  var ro = new ResizeObserver(function (entries) {
+    var width = entries[0].contentRect.width;
+    var reference = getColumnWidth(textarea);
+    if (!reference) return;
+
+    var isWide = card.classList.contains('wide');
+    if (!isWide && width > reference * 1.4) {
+      card.classList.add('wide');
+      textarea.style.width = '';
+    } else if (isWide && width < reference * 1.4) {
+      card.classList.remove('wide');
+      textarea.style.width = '';
+    }
+  });
+  ro.observe(textarea);
+}
+
+function getColumnWidth(excludeTextarea) {
+  var sibling = null;
+  document.querySelectorAll('.deck-textarea').forEach(function (t) {
+    if (!sibling && t !== excludeTextarea && !t.closest('.deck-card').classList.contains('wide')) sibling = t;
+  });
+  if (sibling) return sibling.getBoundingClientRect().width;
+  return excludeTextarea.dataset.naturalWidth ? parseFloat(excludeTextarea.dataset.naturalWidth) : null;
+}
+
+function updateMaxWidth(textarea) {
+  var reference = getColumnWidth(textarea);
+  if (reference) textarea.style.maxWidth = (reference * 2) + 'px';
 }
 
 function updateFooter(textarea, footer) {
@@ -894,8 +1157,13 @@ function parseDecklist(text) {
 }
 
 function cleanName(raw) {
-  // Strip MTG Arena set code + collector number: " (M11) 145" or " (M11)"
-  return raw.replace(/\s*\([A-Z0-9]+\)\s*\d*\s*$/, '').trim();
+  // MTG: printings only differ by set/collector number/foil markers etc,
+  // all of which show up in brackets - e.g. "Forest (SOS) 271 *F*" -> "Forest"
+  if (selectedGame === 'mtg') {
+    var idx = raw.indexOf('(');
+    if (idx !== -1) raw = raw.slice(0, idx);
+  }
+  return raw.trim();
 }
 
 // ──────────────────────────────────────────────
@@ -1027,6 +1295,9 @@ function renderResults(results, deckData) {
 
   switchTab('frequency');
   section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+  lastAnalysedNames = results.all.map(function (c) { return c.name; });
+  maybeFetchCardImages();
 }
 
 // ── Frequency tab ──
@@ -1042,7 +1313,7 @@ function renderFrequency(cards, total) {
     var color = pct >= 75 ? 'var(--green)'  : pct >= 40 ? 'var(--amber)' : 'var(--red)';
     var range = card.min === card.max ? card.min : card.min + '–' + card.max;
     return '<tr>' +
-      '<td class="card-name">' + esc(card.name) + '</td>' +
+      '<td class="card-name" data-card-name="' + esc(card.name) + '">' + esc(card.name) + '</td>' +
       '<td><span class="appear-badge ' + cls + '">' + card.appearances + '/' + total + '</span></td>' +
       '<td><span class="bar-wrap"><span class="bar-fill" style="width:' + pct + '%;background:' + color + '"></span></span>' +
         '<span style="color:var(--dim);font-size:0.72rem;margin-left:6px">' + pct + '%</span></td>' +
@@ -1111,7 +1382,7 @@ function renderSpicy(cards, total, threshold) {
     var pct = Math.round(card.rate * 100);
     var countLabel = card.appearances === 1 ? '1 list only' : card.appearances + ' lists';
     html +=
-      '<div class="spicy-card">' +
+      '<div class="spicy-card" data-card-name="' + esc(card.name) + '">' +
         '<div class="spicy-name">' + esc(card.name) + '</div>' +
         '<div class="spicy-detail">Found in: ' + esc(card.listNames.join(', ')) + '</div>' +
         '<div class="spicy-detail">' + card.avg.toFixed(1) + ' copies avg &middot; ' + pct + '% of lists</div>' +
@@ -1141,7 +1412,9 @@ function renderSkeleton(cards) {
     '<div class="skeleton-actions">' +
       '<button class="btn-secondary" id="copy-btn">Copy Decklist</button>' +
     '</div>' +
-    '<div class="skeleton-output" id="skeleton-output">' + lines.map(esc).join('\n') + '</div>' +
+    '<div class="skeleton-output" id="skeleton-output">' + cards.map(function (c) {
+      return '<span class="skeleton-line" data-card-name="' + esc(c.name) + '">' + esc(c.skeletonCopies + ' ' + c.name) + '</span>';
+    }).join('\n') + '</div>' +
     '<div class="skeleton-stats">' +
       '<div class="stat-pill"><strong>' + cards.length + '</strong> unique cards</div>' +
       '<div class="stat-pill"><strong>' + totalCopies + '</strong> total copies</div>' +

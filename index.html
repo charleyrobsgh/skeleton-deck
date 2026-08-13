@@ -4,17 +4,18 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Decklist Analyser</title>
+  <link rel="icon" type="image/png" href="images/logo-icon-only.png">
   <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-3105748619761835" crossorigin="anonymous"></script>
   <style>
     :root {
-      --bg:        #0d0f18;
-      --surface:   #161927;
-      --surface2:  #1e2235;
-      --border:    #2a2f4a;
-      --text:      #dde3f5;
-      --dim:       #6b7499;
-      --accent:    #5b6ef5;
-      --accent-lt: #8b9bf8;
+      --bg:        #2d2b2b;
+      --surface:   #3a3737;
+      --surface2:  #454141;
+      --border:    #524d4d;
+      --text:      #f4f0ee;
+      --dim:       #a39d9c;
+      --accent:    #00b9bc;
+      --accent-lt: #3dd6d9;
       --green:     #4ade80;
       --amber:     #fbbf24;
       --red:       #f87171;
@@ -36,14 +37,8 @@
     /* ── Header ── */
     header { text-align: center; margin-bottom: 44px; }
 
-    header h1 {
-      font-size: 2.2rem;
-      font-weight: 800;
-      letter-spacing: -0.02em;
-      background: linear-gradient(135deg, var(--accent-lt) 0%, var(--pink) 100%);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      background-clip: text;
+    header .logo {
+      height: 92px;
       margin-bottom: 8px;
     }
 
@@ -54,22 +49,28 @@
       display: flex;
       justify-content: center;
       flex-wrap: wrap;
-      gap: 8px;
-      margin-bottom: 32px;
+      gap: 10px;
+      margin-bottom: 36px;
     }
     .game-tab {
-      padding: 8px 16px;
+      padding: 10px 20px;
       background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 20px;
+      border: 2px solid var(--border);
+      border-radius: 22px;
       color: var(--dim);
-      font-size: 0.82rem;
-      font-weight: 600;
+      font-size: 0.88rem;
+      font-weight: 700;
       cursor: pointer;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.25);
       transition: all 0.15s;
     }
-    .game-tab:hover { border-color: var(--accent); color: var(--accent-lt); }
-    .game-tab.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+    .game-tab:hover { border-color: var(--accent); color: var(--accent-lt); transform: translateY(-1px); }
+    .game-tab.active {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: var(--bg);
+      box-shadow: 0 4px 14px rgba(0,185,188,0.4);
+    }
 
     /* ── Decklists grid ── */
     .decklists-grid {
@@ -170,7 +171,7 @@
       background: var(--accent);
       border: none;
       border-radius: 10px;
-      color: #fff;
+      color: var(--bg);
       font-size: 1rem;
       font-weight: 700;
       cursor: pointer;
@@ -294,7 +295,7 @@
       margin-left: 5px;
       vertical-align: middle;
     }
-    .tab-btn.active .badge { background: var(--accent); color: #fff; }
+    .tab-btn.active .badge { background: var(--accent); color: var(--bg); }
 
     /* ── Results header ── */
     .results-header { margin-bottom: 22px; }
@@ -519,7 +520,7 @@
       gap: 8px;
       padding: 12px 18px;
       background: var(--accent);
-      color: #fff;
+      color: var(--bg);
       border: none;
       border-radius: 30px;
       font-size: 0.85rem;
@@ -529,7 +530,7 @@
       transition: all 0.15s;
     }
     .bug-report-btn:hover { background: var(--accent-lt); transform: translateY(-2px); }
-    .bug-report-btn .icon { font-size: 1rem; line-height: 1; }
+    .bug-report-btn .icon { width: 16px; height: 16px; flex-shrink: 0; }
 
     .form-group { margin-bottom: 16px; }
     .form-group label {
@@ -575,7 +576,7 @@
 <div class="container">
 
   <header>
-    <h1>Decklist Analyser</h1>
+    <img class="logo" src="images/logo-single-line-teal-transparent.png" alt="Skeleton Deck">
     <p>Compare multiple decklists &mdash; discover core cards, tech picks, and build a skeleton list</p>
   </header>
 
@@ -584,7 +585,7 @@
     <button class="game-tab" data-game="lorcana">Lorcana</button>
     <button class="game-tab" data-game="onepiece">One Piece</button>
     <button class="game-tab" data-game="mtg">Magic: The Gathering</button>
-    <button class="game-tab" data-game="pokemon">Pok&eacute;mon</button>
+    <button class="game-tab" data-game="riftbound">Riftbound</button>
     <button class="game-tab" data-game="other">Other</button>
   </div>
 
@@ -698,7 +699,11 @@
 
 <!-- Bug report button -->
 <button class="bug-report-btn" id="bug-report-btn">
-  <span class="icon">&#128027;</span> Report Bug
+  <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <ellipse cx="12" cy="13" rx="6" ry="7"/>
+    <path d="M12 6V4M9 5 8 3M15 5l1-2M5 11H3M21 11h-2M5 16H3M21 16h-2"/>
+  </svg>
+  Report Bug
 </button>
 
 <!-- Bug report modal -->
@@ -811,8 +816,12 @@ let nextId = 0;
 let currentSort = { col: 'appearances', dir: 'desc' };
 let selectedGame = null;
 let lastAnalysedNames = [];
-let scryfallCache = {}; // lowercased card name -> image URL, or null if not found
-let lorcanaCache = {};  // lowercased "Name - Version" (or "Name") -> image URL, or null if not found
+let scryfallCache = {};  // lowercased card name -> image URL, or null if not found
+let lorcanaCache = {};   // lowercased "Name - Version" (or "Name") -> image URL, or null if not found
+let riftboundCache = {}; // lowercased card name -> image URL, or null if not found
+let onePieceCache = {};  // lowercased card name -> image URL, or null if not found
+let riftboundIndex = null;         // built once: lowercased name -> image URL, across the whole card pool
+let riftboundIndexPromise = null;  // in-flight bulk-load promise, so repeated tab switches don't refetch
 
 // ──────────────────────────────────────────────
 // Boot
@@ -863,12 +872,15 @@ function selectGame(game) {
 }
 
 // ──────────────────────────────────────────────
-// Card images (Scryfall for MTG, Lorcast for Lorcana)
+// Card images (Scryfall for MTG, Lorcast for Lorcana, Riftcodex for
+// Riftbound, OPTCG API for One Piece)
 // ──────────────────────────────────────────────
 function maybeFetchCardImages() {
   if (lastAnalysedNames.length === 0) return;
   if (selectedGame === 'mtg') fetchScryfallImages(lastAnalysedNames);
   else if (selectedGame === 'lorcana') fetchLorcanaImages(lastAnalysedNames);
+  else if (selectedGame === 'riftbound') fetchRiftboundImages(lastAnalysedNames);
+  else if (selectedGame === 'onepiece') fetchOnePieceImages(lastAnalysedNames);
 }
 
 function fetchScryfallImages(names) {
@@ -956,6 +968,123 @@ function fetchLorcanaImages(names) {
   for (var i = 0; i < CONCURRENCY && i < baseNames.length; i++) runNext();
 }
 
+// Riftcodex has no name-search endpoint, so instead of one request per card
+// we page through the entire card pool once (~15 pages @ 100/page) and build
+// a local name -> image index, then resolve every deck name against it.
+// Repeat lookups (and repeat tab switches) reuse the same cached index.
+function fetchRiftboundImages(names) {
+  if (riftboundIndex) { applyRiftboundIndex(names); return; }
+  if (!riftboundIndexPromise) riftboundIndexPromise = buildRiftboundIndex();
+  riftboundIndexPromise.then(function () { applyRiftboundIndex(names); });
+}
+
+function applyRiftboundIndex(names) {
+  names.forEach(function (n) {
+    var key = n.toLowerCase();
+    if (key in riftboundCache) return;
+    var stripped = stripCardVariant(n).toLowerCase();
+    riftboundCache[key] = riftboundIndex[key] || riftboundIndex[stripped] || null;
+  });
+}
+
+function buildRiftboundIndex() {
+  var index = {};
+
+  function indexPage(json) {
+    (json.items || []).forEach(function (c) {
+      var img = c.media && c.media.image_url;
+      if (!img || !c.name) return;
+      var fullKey = c.name.toLowerCase();
+      if (!(fullKey in index)) index[fullKey] = img;
+      var isMainPrint = c.metadata && !c.metadata.alternate_art && !c.metadata.signature;
+      var strippedKey = stripCardVariant(c.name).toLowerCase();
+      if (isMainPrint || !(strippedKey in index)) index[strippedKey] = img;
+    });
+  }
+
+  return fetch('https://api.riftcodex.com/cards?size=100&page=1')
+    .then(function (res) { return res.ok ? res.json() : { items: [], pages: 1 }; })
+    .then(function (first) {
+      indexPage(first);
+      var requests = [];
+      for (var p = 2; p <= (first.pages || 1); p++) {
+        requests.push((function (page) {
+          return fetch('https://api.riftcodex.com/cards?size=100&page=' + page)
+            .then(function (res) { return res.ok ? res.json() : { items: [] }; })
+            .then(indexPage)
+            .catch(function () { /* that page just won't contribute images */ });
+        })(p));
+      }
+      return Promise.all(requests);
+    })
+    .catch(function () { /* index stays whatever was built so far */ })
+    .then(function () { riftboundIndex = index; return index; });
+}
+
+function stripCardVariant(name) {
+  return name.replace(/\s*\([^)]*\)\s*$/, '').replace(/\s*-\s*[^-]*$/, '').trim();
+}
+
+// OPTCG API has no bulk/collection lookup, so we search by name (with any
+// trailing "(...)" set/variant marker stripped) once per unique card, run
+// with a small concurrency cap. Card names repeat across sets/reprints, so
+// we prefer a result whose name matches exactly and fall back to the first
+// result that has an image at all.
+function fetchOnePieceImages(names) {
+  var toFetch = [];
+  var seen = {};
+  names.forEach(function (n) {
+    var key = n.toLowerCase();
+    if (seen[key] || key in onePieceCache) return;
+    seen[key] = true;
+    toFetch.push(n);
+  });
+  if (toFetch.length === 0) return;
+
+  var next = 0;
+  var CONCURRENCY = 5;
+
+  function pickImage(results, key) {
+    var list = results || [];
+    var exact = list.find(function (c) {
+      return c.card_image && stripOnePieceVariant(c.card_name).toLowerCase() === key;
+    });
+    if (exact) return exact.card_image;
+    var any = list.find(function (c) { return c.card_image; });
+    return any ? any.card_image : null;
+  }
+
+  function runNext() {
+    if (next >= toFetch.length) return;
+    var fullName = toFetch[next++];
+    var key = fullName.toLowerCase();
+    var searchTerm = stripOnePieceVariant(fullName);
+
+    fetch('https://optcgapi.com/api/sets/filtered/?card_name=' + encodeURIComponent(searchTerm))
+      .then(function (res) { return res.ok ? res.json() : []; })
+      .then(function (results) {
+        var img = pickImage(results, key);
+        if (img) { onePieceCache[key] = img; return; }
+        // Fall back to starter deck cards, which the main set search misses.
+        return fetch('https://optcgapi.com/api/decks/filtered/?card_name=' + encodeURIComponent(searchTerm))
+          .then(function (res) { return res.ok ? res.json() : []; })
+          .then(function (results2) { onePieceCache[key] = pickImage(results2, key); });
+      })
+      .catch(function () { onePieceCache[key] = null; })
+      .then(runNext);
+  }
+
+  for (var i = 0; i < CONCURRENCY && i < toFetch.length; i++) runNext();
+}
+
+// One Piece card names carry their set/variant marker as a trailing
+// "(025)"-style suffix only, unlike Riftbound's " - Subtitle" convention,
+// so this only needs to strip the parenthetical (stripCardVariant's extra
+// dash-suffix stripping isn't wanted here).
+function stripOnePieceVariant(name) {
+  return name.replace(/\s*\([^)]*\)\s*$/, '').trim();
+}
+
 // ──────────────────────────────────────────────
 // Card hover preview
 // ──────────────────────────────────────────────
@@ -969,7 +1098,8 @@ function initCardPreview() {
   document.body.addEventListener('mouseover', function (e) {
     var el = e.target.closest('[data-card-name]');
     if (!el) return;
-    var cache = selectedGame === 'mtg' ? scryfallCache : selectedGame === 'lorcana' ? lorcanaCache : null;
+    var cache = selectedGame === 'mtg' ? scryfallCache : selectedGame === 'lorcana' ? lorcanaCache :
+      selectedGame === 'riftbound' ? riftboundCache : selectedGame === 'onepiece' ? onePieceCache : null;
     if (!cache) return;
     var url = cache[el.dataset.cardName.toLowerCase()];
     if (!url) return;

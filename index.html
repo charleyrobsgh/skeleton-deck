@@ -41,6 +41,12 @@
       height: 92px;
       margin-bottom: 8px;
     }
+    header .logo-compact { display: none; }
+
+    @media (max-width: 640px) {
+      header .logo-wide { display: none; }
+      header .logo-compact { display: inline-block; height: 76px; }
+    }
 
     header p { color: var(--dim); font-size: 0.95rem; }
 
@@ -576,7 +582,8 @@
 <div class="container">
 
   <header>
-    <img class="logo" src="images/logo-single-line-teal-transparent.png" alt="Skeleton Deck">
+    <img class="logo logo-wide" src="images/logo-single-line-teal-transparent.png" alt="Skeleton Deck">
+    <img class="logo logo-compact" src="images/logo-horizontal-teal-transparent.png" alt="Skeleton Deck">
     <p>Compare multiple decklists &mdash; discover core cards, tech picks, and build a skeleton list</p>
   </header>
 

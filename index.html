@@ -87,6 +87,7 @@
     }
 
     .deck-card {
+      position: relative;
       background: var(--surface);
       border: 1px solid var(--border);
       border-radius: 12px;
@@ -103,6 +104,7 @@
       gap: 8px;
       align-items: center;
       margin-bottom: 10px;
+      padding-right: 36px;
     }
 
     .deck-name {
@@ -118,6 +120,9 @@
     .deck-name:focus { border-color: var(--accent); }
 
     .btn-remove {
+      position: absolute;
+      top: 14px;
+      right: 14px;
       width: 28px; height: 28px;
       display: flex; align-items: center; justify-content: center;
       background: none;
@@ -157,8 +162,14 @@
     }
 
     /* ── Buttons ── */
+    .input-actions {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 22px;
+    }
+
     .btn-add {
-      width: 100%;
+      flex: 1;
       padding: 11px;
       background: none;
       border: 2px dashed var(--border);
@@ -167,9 +178,10 @@
       cursor: pointer;
       font-size: 0.85rem;
       transition: all 0.15s;
-      margin-bottom: 22px;
     }
     .btn-add:hover { border-color: var(--accent); color: var(--accent-lt); }
+
+    .btn-clear-all:hover { border-color: var(--red); color: var(--red); }
 
     .btn-primary {
       width: 100%;
@@ -610,7 +622,10 @@
   <!-- INPUT SECTION -->
   <section id="input-section">
     <div class="decklists-grid" id="decklists-grid"></div>
-    <button class="btn-add" id="add-btn">+ Add Decklist</button>
+    <div class="input-actions">
+      <button class="btn-add" id="add-btn">+ Add Decklist</button>
+      <button class="btn-secondary btn-clear-all" id="clear-all-btn">Clear All</button>
+    </div>
 
     <div class="settings-panel">
       <div class="settings-label">Analysis Settings</div>
@@ -841,6 +856,8 @@ document.addEventListener('DOMContentLoaded', function () {
     var count = document.querySelectorAll('.deck-card').length;
     addDeck('Decklist ' + String.fromCharCode(65 + count));
   });
+
+  document.getElementById('clear-all-btn').addEventListener('click', clearAllDecks);
 
   document.getElementById('analyse-btn').addEventListener('click', runAnalysis);
 
@@ -1143,6 +1160,24 @@ function positionCardPreview(x, y) {
 // ──────────────────────────────────────────────
 // Deck management
 // ──────────────────────────────────────────────
+function clearAllDecks() {
+  var cards = document.querySelectorAll('.deck-card');
+  if (cards.length === 0) return;
+
+  var hasContent = Array.from(cards).some(function (card) {
+    return card.querySelector('.deck-textarea').value.trim() !== '';
+  });
+  if (hasContent && !confirm('Clear all decklists and start fresh?')) return;
+
+  cards.forEach(function (card) { card.remove(); });
+  addDeck('Decklist A');
+  addDeck('Decklist B');
+
+  clearError();
+  document.getElementById('results-section').style.display = 'none';
+  lastAnalysedNames = [];
+}
+
 function addDeck(defaultName) {
   var id = nextId++;
   var grid = document.getElementById('decklists-grid');
@@ -1153,9 +1188,9 @@ function addDeck(defaultName) {
   card.innerHTML =
     '<div class="deck-card-header">' +
       '<input class="deck-name" type="text" placeholder="Decklist name" value="' + esc(defaultName || ('Decklist ' + String.fromCharCode(65 + id))) + '">' +
-      '<button class="btn-remove" title="Remove">&#x2715;</button>' +
     '</div>' +
     '<textarea class="deck-textarea" placeholder="Paste your decklist here...\n\n4 Card Name\n2 Another Card\n1 Third Card\n..."></textarea>' +
+    '<button class="btn-remove" title="Remove">&#x2715;</button>' +
     '<div class="deck-footer"></div>';
 
   grid.appendChild(card);

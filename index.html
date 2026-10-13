@@ -525,6 +525,8 @@
     }
     .modal-box h2 { font-size: 1.1rem; margin-bottom: 14px; }
     .modal-box p { font-size: 0.85rem; color: var(--dim); line-height: 1.6; margin-bottom: 12px; }
+    .modal-box p a { color: var(--accent-lt); }
+    .modal-box p a:hover { color: var(--accent); }
     .modal-close { margin-top: 10px; }
 
     /* ── Bug report ── */
@@ -624,6 +626,7 @@
     <div class="decklists-grid" id="decklists-grid"></div>
     <div class="input-actions">
       <button class="btn-add" id="add-btn">+ Add Decklist</button>
+      <button class="btn-secondary" id="import-url-btn">Import from URL</button>
       <button class="btn-secondary btn-clear-all" id="clear-all-btn">Clear All</button>
     </div>
 
@@ -750,6 +753,22 @@
       <input type="text" name="_honey" style="display:none" tabindex="-1" autocomplete="off">
       <button type="submit" class="btn-primary" id="bug-submit-btn">Submit Report</button>
       <div class="form-status" id="bug-status"></div>
+    </form>
+  </div>
+</div>
+
+<!-- Import from URL modal -->
+<div class="modal-overlay" id="import-modal">
+  <div class="modal-box">
+    <h2>Import from URL</h2>
+    <p>Paste a public <a href="https://dreamborn.ink" target="_blank" rel="noopener">Dreamborn</a> deck link and we'll pull the card list in for you.</p>
+    <form id="import-form">
+      <div class="form-group">
+        <label for="import-url">Deck URL</label>
+        <input class="form-input" type="url" id="import-url" name="url" placeholder="https://dreamborn.ink/decks/..." required>
+      </div>
+      <button type="submit" class="btn-primary" id="import-submit-btn">Import</button>
+      <div class="form-status" id="import-status"></div>
     </form>
   </div>
 </div>
@@ -1208,6 +1227,7 @@ function addDeck(defaultName) {
   });
 
   attachWidthResize(card);
+  return card;
 }
 
 // Dragging the textarea's own resize handle (now both axes) widens it past
@@ -1641,6 +1661,137 @@ function esc(s) {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;');
 }
+</script>
+
+<script>
+(function () {
+  'use strict';
+
+  var modal  = document.getElementById('import-modal');
+  var openBtn = document.getElementById('import-url-btn');
+  var closeOnBackdrop = modal;
+  var form   = document.getElementById('import-form');
+  var input  = document.getElementById('import-url');
+  var submit = document.getElementById('import-submit-btn');
+  var status = document.getElementById('import-status');
+
+  function openModal() {
+    modal.classList.add('active');
+    status.className = 'form-status';
+    status.textContent = '';
+    input.focus();
+  }
+  function closeModal() { modal.classList.remove('active'); }
+
+  openBtn.addEventListener('click', openModal);
+  closeOnBackdrop.addEventListener('click', function (e) { if (e.target === modal) closeModal(); });
+
+  form.addEventListener('submit', function (e) {
+    e.preventDefault();
+
+    var url = input.value.trim();
+    var parsed;
+    try { parsed = new URL(url); } catch (err) { parsed = null; }
+
+    if (!parsed || (parsed.hostname !== 'dreamborn.ink' && !parsed.hostname.endsWith('.dreamborn.ink'))) {
+      status.className = 'form-status error';
+      status.textContent = 'Only dreamborn.ink deck links are supported right now.';
+      return;
+    }
+
+    submit.disabled = true;
+    submit.textContent = 'Importing...';
+    status.className = 'form-status';
+    status.textContent = '';
+
+    fetch(url)
+      .then(function (res) {
+        if (!res.ok) throw new Error('fetch-failed');
+        return res.text();
+      })
+      .then(function (html) {
+        var deck = extractDreambornDeck(html);
+        var card = findEmptyDeckCard();
+        if (card) {
+          var nameInput = card.querySelector('.deck-name');
+          if (deck.name && (!nameInput.value.trim() || /^Decklist [A-Z]$/.test(nameInput.value.trim()))) {
+            nameInput.value = deck.name;
+          }
+        } else {
+          card = addDeck(deck.name || 'Imported Deck');
+        }
+        var textarea = card.querySelector('.deck-textarea');
+        var footer   = card.querySelector('.deck-footer');
+        textarea.value = deck.lines.join('\n');
+        updateFooter(textarea, footer);
+        selectGame('lorcana');
+
+        status.className = 'form-status success';
+        status.textContent = 'Imported "' + deck.name + '" (' + deck.lines.length + ' cards).';
+        form.reset();
+        setTimeout(closeModal, 1400);
+      })
+      .catch(function () {
+        status.className = 'form-status error';
+        status.textContent = "Couldn't import that deck. Make sure the link is a public Dreamborn deck page, then try again.";
+      })
+      .finally(function () {
+        submit.disabled = false;
+        submit.textContent = 'Import';
+      });
+  });
+
+  function findEmptyDeckCard() {
+    var cards = document.querySelectorAll('.deck-card');
+    for (var i = 0; i < cards.length; i++) {
+      if (cards[i].querySelector('.deck-textarea').value.trim() === '') return cards[i];
+    }
+    return null;
+  }
+
+  // Dreamborn's deck page embeds its data as a Nuxt SSR payload: a JSON
+  // array where a "schema" object maps field names (id, name, pbCode, ...)
+  // to the index holding that field's actual value elsewhere in the same
+  // array. pbCode is a base64 blob of the full card list, independent of
+  // Nuxt's exact index numbering, which shifts from deck to deck.
+  function extractDreambornDeck(html) {
+    var match = html.match(/<script[^>]*id="__NUXT_DATA__"[^>]*>([\s\S]*?)<\/script>/);
+    if (!match) throw new Error('no-nuxt-data');
+
+    var payload = JSON.parse(match[1]);
+    var schema = null;
+    for (var i = 0; i < payload.length; i++) {
+      var item = payload[i];
+      if (item && typeof item === 'object' && !Array.isArray(item) && typeof item.pbCode === 'number') {
+        schema = item;
+        break;
+      }
+    }
+    if (!schema) throw new Error('no-pbcode-field');
+
+    var name = typeof schema.name === 'number' ? payload[schema.name] : null;
+    var pbCode = payload[schema.pbCode];
+    if (!pbCode || typeof pbCode !== 'string') throw new Error('no-pbcode-value');
+
+    var decoded = base64ToUtf8(pbCode);
+    var lines = decoded.split('|').filter(Boolean).map(function (segment) {
+      var dollarIdx = segment.lastIndexOf('$');
+      var namePart = segment.slice(0, dollarIdx);
+      var qty = segment.slice(dollarIdx + 1);
+      return qty + ' ' + namePart.replace('_', ' - ');
+    });
+    if (lines.length === 0) throw new Error('empty-decklist');
+
+    return { name: name, lines: lines };
+  }
+
+  function base64ToUtf8(b64) {
+    var binary = atob(b64);
+    var bytes = new Uint8Array(binary.length);
+    for (var i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+    return new TextDecoder('utf-8').decode(bytes);
+  }
+})();
 </script>
 </body>
 </html>

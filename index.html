@@ -320,6 +320,55 @@
     .results-header h2 { font-size: 1.2rem; font-weight: 700; margin-bottom: 4px; }
     .results-header p { color: var(--dim); font-size: 0.85rem; }
 
+    /* ── Intro / example content ── */
+    .intro-section {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 24px;
+      margin-bottom: 28px;
+    }
+    .intro-section h2 { font-size: 1.15rem; font-weight: 700; margin-bottom: 10px; }
+    .intro-section > p { color: var(--dim); font-size: 0.88rem; line-height: 1.6; margin-bottom: 14px; }
+    .intro-section > p:last-child { margin-bottom: 0; }
+
+    .intro-steps { list-style: none; counter-reset: step; display: flex; flex-direction: column; gap: 12px; }
+    .intro-steps li {
+      counter-increment: step;
+      display: flex;
+      gap: 12px;
+      align-items: flex-start;
+      font-size: 0.85rem;
+      color: var(--text);
+      line-height: 1.5;
+    }
+    .intro-steps li > span { flex: 1; min-width: 0; }
+    .intro-steps li::before {
+      content: counter(step);
+      flex-shrink: 0;
+      width: 22px; height: 22px;
+      border-radius: 50%;
+      background: var(--accent);
+      color: var(--bg);
+      font-size: 0.75rem;
+      font-weight: 700;
+      display: flex; align-items: center; justify-content: center;
+    }
+
+    .example-badge {
+      display: inline-block;
+      background: rgba(244,114,182,0.15);
+      color: var(--pink);
+      border-radius: 20px;
+      padding: 2px 10px;
+      font-size: 0.68rem;
+      font-weight: 700;
+      margin-left: 8px;
+      vertical-align: middle;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
     /* ── Tab content ── */
     .tab-content { display: none; }
     .tab-content.active { display: block; }
@@ -529,6 +578,10 @@
     .modal-box p a:hover { color: var(--accent); }
     .modal-close { margin-top: 10px; }
 
+    .modal-actions { display: flex; gap: 10px; }
+    .modal-actions .btn-secondary,
+    .modal-actions .btn-primary { flex: 1; width: auto; margin-bottom: 0; }
+
     /* ── Bug report ── */
     .bug-report-btn {
       position: fixed;
@@ -601,6 +654,17 @@
     <p>Compare multiple decklists &mdash; discover core cards, tech picks, and build a skeleton list</p>
   </header>
 
+  <!-- HOW IT WORKS -->
+  <section class="intro-section">
+    <h2>How it works</h2>
+    <p>Paste in two or more decklists from the same archetype &mdash; your own testing, a tournament's top cut, lists you've found online &mdash; and Decklist Analyser lines them up to show you what's actually driving the deck, instead of you cross-referencing them by eye.</p>
+    <ol class="intro-steps">
+      <li><span><strong>Paste your decklists.</strong> Each one gets its own box &mdash; name them, add as many as you like, and pick the card game so card names parse correctly.</span></li>
+      <li><span><strong>Set your thresholds.</strong> Decide how rare a card has to be to count as a spicy tech pick, and how common it has to be to make the core skeleton.</span></li>
+      <li><span><strong>Hit Analyse.</strong> You'll get three views: <strong>Card Frequency</strong> (every card, ranked by how often it shows up across your lists), <strong>Spicy Picks</strong> (the tech choices unique to just one or two lists), and <strong>Skeleton Deck</strong> (the core cards most lists agree on, combined into a ready-to-copy decklist).</span></li>
+    </ol>
+  </section>
+
   <!-- GAME SELECTOR -->
   <div class="game-tabs" id="game-tabs">
     <button class="game-tab" data-game="lorcana">Lorcana</button>
@@ -609,6 +673,44 @@
     <button class="game-tab" data-game="riftbound">Riftbound</button>
     <button class="game-tab" data-game="other">Other</button>
   </div>
+
+  <!-- EXAMPLE OUTPUT -->
+  <section class="intro-section">
+    <h2>What you'll see<span class="example-badge">Example</span></h2>
+    <p>A sample run comparing 5 competitive Amber/Steel Lorcana lists &mdash; illustrative data below, not a live result.</p>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Card Name</th><th>Appearances</th><th>Frequency</th><th>Avg Copies</th></tr></thead>
+        <tbody>
+          <tr>
+            <td class="card-name">Elinor - Renowned Diplomat</td>
+            <td><span class="appear-badge appear-high">5/5</span></td>
+            <td><span class="bar-wrap"><span class="bar-fill" style="width:100%;background:var(--green)"></span></span><span style="color:var(--dim);font-size:0.72rem;margin-left:6px">100%</span></td>
+            <td>4.0</td>
+          </tr>
+          <tr>
+            <td class="card-name">Aurora - Holding Court</td>
+            <td><span class="appear-badge appear-high">4/5</span></td>
+            <td><span class="bar-wrap"><span class="bar-fill" style="width:80%;background:var(--green)"></span></span><span style="color:var(--dim);font-size:0.72rem;margin-left:6px">80%</span></td>
+            <td>3.5</td>
+          </tr>
+          <tr>
+            <td class="card-name">Rapunzel - Tower Defender</td>
+            <td><span class="appear-badge appear-mid">3/5</span></td>
+            <td><span class="bar-wrap"><span class="bar-fill" style="width:60%;background:var(--amber)"></span></span><span style="color:var(--dim);font-size:0.72rem;margin-left:6px">60%</span></td>
+            <td>2.3</td>
+          </tr>
+          <tr>
+            <td class="card-name">Ursula - Deceiver</td>
+            <td><span class="appear-badge appear-low">1/5</span></td>
+            <td><span class="bar-wrap"><span class="bar-fill" style="width:20%;background:var(--red)"></span></span><span style="color:var(--dim);font-size:0.72rem;margin-left:6px">20%</span></td>
+            <td>4.0</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <p>That last row is exactly what the <strong>Spicy Picks</strong> tab is for &mdash; a 4-of in just one list out of five is a tech choice worth noticing. Elinor and Aurora, on the other hand, would land in the <strong>Skeleton Deck</strong> tab as a ready-to-copy starting point.</p>
+  </section>
 
   <!-- AD SLOT: top banner -->
   <div class="ad-slot">
@@ -773,6 +875,18 @@
   </div>
 </div>
 
+<!-- Clear All confirmation modal -->
+<div class="modal-overlay" id="clear-confirm-modal">
+  <div class="modal-box">
+    <h2>Clear all decklists?</h2>
+    <p>This removes everything you've pasted in and resets back to two empty decklists. This can't be undone.</p>
+    <div class="modal-actions">
+      <button class="btn-secondary" id="clear-confirm-cancel">Cancel</button>
+      <button class="btn-primary" id="clear-confirm-ok">Clear All</button>
+    </div>
+  </div>
+</div>
+
 <script>
 document.getElementById('privacy-link').addEventListener('click', function () {
   document.getElementById('privacy-modal').classList.add('active');
@@ -877,6 +991,18 @@ document.addEventListener('DOMContentLoaded', function () {
   });
 
   document.getElementById('clear-all-btn').addEventListener('click', clearAllDecks);
+
+  var clearConfirmModal = document.getElementById('clear-confirm-modal');
+  document.getElementById('clear-confirm-ok').addEventListener('click', function () {
+    clearConfirmModal.classList.remove('active');
+    performClearAllDecks();
+  });
+  document.getElementById('clear-confirm-cancel').addEventListener('click', function () {
+    clearConfirmModal.classList.remove('active');
+  });
+  clearConfirmModal.addEventListener('click', function (e) {
+    if (e.target === clearConfirmModal) clearConfirmModal.classList.remove('active');
+  });
 
   document.getElementById('analyse-btn').addEventListener('click', runAnalysis);
 
@@ -1186,9 +1312,16 @@ function clearAllDecks() {
   var hasContent = Array.from(cards).some(function (card) {
     return card.querySelector('.deck-textarea').value.trim() !== '';
   });
-  if (hasContent && !confirm('Clear all decklists and start fresh?')) return;
 
-  cards.forEach(function (card) { card.remove(); });
+  if (hasContent) {
+    document.getElementById('clear-confirm-modal').classList.add('active');
+  } else {
+    performClearAllDecks();
+  }
+}
+
+function performClearAllDecks() {
+  document.querySelectorAll('.deck-card').forEach(function (card) { card.remove(); });
   addDeck('Decklist A');
   addDeck('Decklist B');
 
@@ -1770,6 +1903,8 @@ function esc(s) {
     if (!schema) throw new Error('no-pbcode-field');
 
     var name = typeof schema.name === 'number' ? payload[schema.name] : null;
+    var creatorName = typeof schema.creatorName === 'number' ? payload[schema.creatorName] : null;
+    if (name && creatorName) name = name + ' by ' + creatorName;
     var pbCode = payload[schema.pbCode];
     if (!pbCode || typeof pbCode !== 'string') throw new Error('no-pbcode-value');
 
